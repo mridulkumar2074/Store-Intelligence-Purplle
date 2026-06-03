@@ -7,9 +7,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 COPY data/ ./data/
+COPY sample_events/ ./sample_events/
 
-ENV DATABASE_URL=sqlite:///./store_intelligence.db
+ENV DATABASE_URL=sqlite:////tmp/store_intelligence.db
 ENV POS_CSV=data/pos_transactions.csv
+ENV SAMPLE_EVENTS=sample_events/events.jsonl
 ENV PORT=8000
 
 EXPOSE 8000

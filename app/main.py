@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
     configure_logging()
     create_tables()
     _load_pos_data()
+    _load_sample_events()
     yield
 
 
@@ -63,6 +64,38 @@ def _load_pos_data() -> None:
         db.commit()
     except Exception:
         db.rollback()
+    finally:
+        db.close()
+
+
+def _load_sample_events() -> None:
+    events_path = os.getenv("SAMPLE_EVENTS", "sample_events/events.jsonl")
+    if not os.path.exists(events_path):
+        return
+    import json as _json
+    from app.database import SessionLocal
+    from app.models import IngestRequest, StoreEvent
+    db = SessionLocal()
+    try:
+        from app.database import EventRow
+        if db.query(EventRow).count() > 0:
+            return
+        events = []
+        with open(events_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        events.append(StoreEvent.model_validate(_json.loads(line)))
+                    except Exception:
+                        pass
+        if events:
+            from app.ingestion import ingest_events
+            ingest_events(db, IngestRequest(events=events[:500]))
+            if len(events) > 500:
+                ingest_events(db, IngestRequest(events=events[500:]))
+    except Exception:
+        pass
     finally:
         db.close()
 
