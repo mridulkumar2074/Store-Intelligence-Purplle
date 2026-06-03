@@ -28,8 +28,8 @@ A complete end-to-end retail store analytics system: raw CCTV footage → detect
 ### API — Swagger UI (all 6 endpoints)
 ![Store Intelligence API Docs](assets/api_docs.png)
 
-### API — /stores/ST1008/metrics response
-![Metrics JSON Response](assets/api_metrics.png)
+### API — Swagger UI Live Response (/stores/ST1008/metrics)
+![Swagger UI Live Response](assets/swagger_response.png)
 
 ---
 
