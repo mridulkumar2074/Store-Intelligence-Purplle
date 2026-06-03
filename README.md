@@ -12,12 +12,6 @@ A complete end-to-end retail store analytics system: raw CCTV footage → detect
 |---|---|
 | API Health | https://store-intelligence-purplle.onrender.com/health |
 | Swagger UI (interactive docs) | https://store-intelligence-purplle.onrender.com/docs |
-| ST1008 Metrics | https://store-intelligence-purplle.onrender.com/stores/ST1008/metrics |
-| ST1008 Funnel | https://store-intelligence-purplle.onrender.com/stores/ST1008/funnel |
-| ST1008 Heatmap | https://store-intelligence-purplle.onrender.com/stores/ST1008/heatmap |
-| ST1008 Anomalies | https://store-intelligence-purplle.onrender.com/stores/ST1008/anomalies |
-| ST1076 Metrics | https://store-intelligence-purplle.onrender.com/stores/ST1076/metrics |
-| ST1076 Funnel | https://store-intelligence-purplle.onrender.com/stores/ST1076/funnel |
 
 > Note: Render free tier spins down after inactivity — first request may take ~30 seconds to wake up.
 
