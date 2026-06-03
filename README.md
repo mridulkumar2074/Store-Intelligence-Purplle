@@ -19,12 +19,6 @@ A complete end-to-end retail store analytics system: raw CCTV footage → detect
 
 ## Live Screenshots
 
-### Store 1 (ST1008) — 40 Visitors, Funnel & Anomalies
-![Store 1 Dashboard](assets/dashboard.png)
-
-### Store 2 (ST1076) — 35 Visitors, Independent Metrics
-![Store 2 Dashboard](assets/dashboard_st1076.png)
-
 ### API — Swagger UI (all 6 endpoints)
 ![Store Intelligence API Docs](assets/api_docs.png)
 
