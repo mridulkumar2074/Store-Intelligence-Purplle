@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: store-intelligence-api:latest
+    container_name: store_intelligence_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - db_data:/app/data
+    environment:
+      DATABASE_URL: "sqlite:////app/data/store_intelligence.db"
+      POS_CSV: "data/pos_transactions.csv"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: store-intelligence-api:latest
+    container_name: store_intelligence_dashboard
+    command: streamlit run dashboard/live_dashboard.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      API_URL: "http://api:8000"
+      DASHBOARD_REFRESH_S: "10"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./dashboard:/app/dashboard
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    image: store-intelligence-pipeline:latest
+    container_name: store_intelligence_pipeline
+    volumes:
+      - ./Store 1:/clips/Store 1:ro
+      - ./Store 2:/clips/Store 2:ro
+      - ./data:/app/data:ro
+    environment:
+      API_URL: "http://api:8000"
+      CLIPS_BASE_DIR: "/clips"
+      POS_CSV: "/app/data/pos_transactions.csv"
+    depends_on:
+      api:
+        condition: service_healthy
+    profiles:
+      - pipeline
+
+volumes:
+  db_data:

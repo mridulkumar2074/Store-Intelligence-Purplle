@@ -1,0 +1,215 @@
+{
+  "stores": {
+    "ST1008": {
+      "name": "Purplle Store 1008",
+      "city": "Mumbai",
+      "open_hours": { "start": "10:00", "end": "21:00" },
+      "cameras": {
+        "CAM_ENTRY": {
+          "type": "entry",
+          "file": "CAM 3 - entry.mp4",
+          "fps": 15,
+          "resolution": [1920, 1080],
+          "description": "Main entrance / exit threshold"
+        },
+        "CAM_ZONE_01": {
+          "type": "zone",
+          "file": "CAM 1 - zone.mp4",
+          "fps": 15,
+          "resolution": [1920, 1080],
+          "description": "Left shelf zone — Skincare and Makeup"
+        },
+        "CAM_ZONE_02": {
+          "type": "zone",
+          "file": "CAM 2 - zone.mp4",
+          "fps": 15,
+          "resolution": [1920, 1080],
+          "description": "Right shelf zone — Haircare and Fragrance"
+        },
+        "CAM_BILLING": {
+          "type": "billing",
+          "file": "CAM 5 - billing.mp4",
+          "fps": 15,
+          "resolution": [1920, 1080],
+          "description": "Billing counter area"
+        }
+      },
+      "entry_line": {
+        "camera": "CAM_ENTRY",
+        "y": 700,
+        "direction_in": "top_to_bottom",
+        "comment": "Person crossing y=700 top→bottom = entering; bottom→top = exiting"
+      },
+      "zones": [
+        {
+          "zone_id": "ST1008_ENTRY",
+          "zone_name": "Entry",
+          "zone_type": "ENTRY",
+          "is_revenue_zone": false,
+          "camera_id": "CAM_ENTRY",
+          "polygon": [[600, 600], [1320, 600], [1320, 1080], [600, 1080]],
+          "sku_zone": null
+        },
+        {
+          "zone_id": "ST1008_SKINCARE",
+          "zone_name": "Skincare",
+          "zone_type": "SHELF",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_01",
+          "polygon": [[0, 100], [640, 100], [640, 900], [0, 900]],
+          "sku_zone": "SKINCARE"
+        },
+        {
+          "zone_id": "ST1008_CENTER_DISPLAY",
+          "zone_name": "Center Display",
+          "zone_type": "DISPLAY",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_01",
+          "polygon": [[640, 100], [1280, 100], [1280, 900], [640, 900]],
+          "sku_zone": "MAKEUP"
+        },
+        {
+          "zone_id": "ST1008_MAKEUP",
+          "zone_name": "Makeup",
+          "zone_type": "SHELF",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_01",
+          "polygon": [[1280, 100], [1920, 100], [1920, 900], [1280, 900]],
+          "sku_zone": "MAKEUP"
+        },
+        {
+          "zone_id": "ST1008_FRAGRANCE",
+          "zone_name": "Fragrance",
+          "zone_type": "SHELF",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_02",
+          "polygon": [[0, 0], [960, 0], [960, 540], [0, 540]],
+          "sku_zone": "FRAGRANCE"
+        },
+        {
+          "zone_id": "ST1008_HAIRCARE",
+          "zone_name": "Haircare",
+          "zone_type": "SHELF",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_02",
+          "polygon": [[960, 0], [1920, 0], [1920, 540], [960, 540]],
+          "sku_zone": "HAIRCARE"
+        },
+        {
+          "zone_id": "ST1008_ACCESSORIES",
+          "zone_name": "Accessories",
+          "zone_type": "SHELF",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_02",
+          "polygon": [[0, 540], [1920, 540], [1920, 1080], [0, 1080]],
+          "sku_zone": "ACCESSORIES"
+        },
+        {
+          "zone_id": "ST1008_BILLING",
+          "zone_name": "Billing Counter",
+          "zone_type": "BILLING",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_BILLING",
+          "polygon": [[400, 200], [1520, 200], [1520, 950], [400, 950]],
+          "sku_zone": null
+        }
+      ]
+    },
+    "ST1076": {
+      "name": "Purplle Store 1076",
+      "city": "Mumbai",
+      "open_hours": { "start": "10:00", "end": "21:00" },
+      "cameras": {
+        "CAM_ENTRY_01": {
+          "type": "entry",
+          "file": "entry 1.mp4",
+          "fps": 15,
+          "resolution": [1920, 1080],
+          "description": "Main entrance camera"
+        },
+        "CAM_ENTRY_02": {
+          "type": "entry",
+          "file": "entry 2.mp4",
+          "fps": 15,
+          "resolution": [1920, 1080],
+          "description": "Secondary entrance / side door"
+        },
+        "CAM_ZONE_01": {
+          "type": "zone",
+          "file": "zone.mp4",
+          "fps": 15,
+          "resolution": [1920, 1080],
+          "description": "Main floor zone coverage"
+        },
+        "CAM_BILLING": {
+          "type": "billing",
+          "file": "billing_area.mp4",
+          "fps": 15,
+          "resolution": [1920, 1080],
+          "description": "Billing counter area"
+        }
+      },
+      "entry_line": {
+        "camera": "CAM_ENTRY_01",
+        "y": 700,
+        "direction_in": "top_to_bottom"
+      },
+      "zones": [
+        {
+          "zone_id": "PURPLLE_MUM_1076_ENTRY",
+          "zone_name": "Entry",
+          "zone_type": "ENTRY",
+          "is_revenue_zone": false,
+          "camera_id": "CAM_ENTRY_01",
+          "polygon": [[600, 600], [1320, 600], [1320, 1080], [600, 1080]],
+          "sku_zone": null
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z01",
+          "zone_name": "Left Shelf",
+          "zone_type": "SHELF",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_01",
+          "polygon": [[0, 100], [640, 100], [640, 900], [0, 900]],
+          "sku_zone": "SKINCARE"
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z02",
+          "zone_name": "Center Display",
+          "zone_type": "DISPLAY",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_01",
+          "polygon": [[640, 100], [1280, 100], [1280, 900], [640, 900]],
+          "sku_zone": "MAKEUP"
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z03",
+          "zone_name": "Lipstick Aisle",
+          "zone_type": "SHELF",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_01",
+          "polygon": [[1280, 100], [1920, 100], [1920, 900], [1280, 900]],
+          "sku_zone": "MAKEUP"
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z04",
+          "zone_name": "Fragrance Corner",
+          "zone_type": "SHELF",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_ZONE_01",
+          "polygon": [[0, 600], [640, 600], [640, 1080], [0, 1080]],
+          "sku_zone": "FRAGRANCE"
+        },
+        {
+          "zone_id": "PURPLLE_MUM_1076_Z_BILLING_01",
+          "zone_name": "Billing Counter Queue",
+          "zone_type": "BILLING",
+          "is_revenue_zone": true,
+          "camera_id": "CAM_BILLING",
+          "polygon": [[400, 200], [1520, 200], [1520, 950], [400, 950]],
+          "sku_zone": null
+        }
+      ]
+    }
+  }
+}

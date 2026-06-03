@@ -1,0 +1,14 @@
+[run]
+source = app, pipeline
+omit =
+    */test_*.py
+    dashboard/*
+    sample_events/*
+
+[report]
+show_missing = true
+skip_covered = false
+fail_under = 70
+
+[html]
+directory = htmlcov

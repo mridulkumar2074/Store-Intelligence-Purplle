@@ -1,0 +1,10 @@
+# API requirements (pipeline posts events to the API)
+-r requirements.txt
+
+# Computer vision & detection
+ultralytics>=8.2.0
+opencv-python-headless>=4.9.0
+numpy>=1.26.0
+
+# (Optional) Deep Re-ID — only needed if upgrading from histogram Re-ID
+# torchreid>=0.2.5
