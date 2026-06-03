@@ -1,50 +1,152 @@
 # Store Intelligence — Purplle Tech Challenge 2026
 
-A complete retail store analytics system: CCTV → detection pipeline → live API → dashboard.
+> **North Star Metric**: Offline Store Conversion Rate = Visitors who purchased ÷ Total unique visitors
 
-**North Star Metric**: Offline Store Conversion Rate  
-`Conversion Rate = Visitors who completed a purchase ÷ Total unique visitors`
+A complete end-to-end retail store analytics system: raw CCTV footage → detection pipeline → live REST API → Streamlit dashboard.
+
+---
+
+## Live Screenshots
+
+### Dashboard — Live Metrics, Funnel & Anomalies
+![Store Intelligence Dashboard](assets/dashboard.png)
+
+### API — Swagger UI (all 6 endpoints)
+![Store Intelligence API Docs](assets/api_docs.png)
+
+### API — /stores/ST1008/metrics response
+![Metrics JSON Response](assets/api_metrics.png)
+
+---
+
+## Component Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        CCTV Footage                                 │
+│          Store 1 (4 cameras)    Store 2 (4 cameras)                 │
+└───────────────────────┬─────────────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   Detection Pipeline  (pipeline/)                   │
+│                                                                     │
+│  ┌─────────────┐   ┌──────────────┐   ┌────────────────────────┐   │
+│  │  detect.py  │   │  tracker.py  │   │  zone_classifier.py    │   │
+│  │  YOLOv8n    │──▶│  ByteTrack   │──▶│  Point-in-Polygon      │   │
+│  │  Person     │   │  Re-ID       │   │  Zone Assignment       │   │
+│  │  Detection  │   │  Cross-cam   │   │  (store_layout.json)   │   │
+│  └─────────────┘   │  Dedup       │   └────────────────────────┘   │
+│                    └──────┬───────┘                                 │
+│                           │                                         │
+│  ┌─────────────────┐      │   ┌─────────────────────────────────┐  │
+│  │ staff_detector  │      │   │          emit.py                │  │
+│  │ HSV Uniform     │──────┴──▶│  8 Event Types → HTTP Batch    │  │
+│  │ Colour Match    │          │  ENTRY / EXIT / ZONE_ENTER /   │  │
+│  └─────────────────┘          │  ZONE_EXIT / ZONE_DWELL /      │  │
+│                               │  BILLING_QUEUE_JOIN /          │  │
+│        run.sh ──────────────▶ │  BILLING_QUEUE_ABANDON /       │  │
+│        (one command,          │  REENTRY                       │  │
+│         all stores)           └────────────────┬────────────────┘  │
+└────────────────────────────────────────────────┼────────────────────┘
+                                                 │ POST /events/ingest
+                                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   Intelligence API  (app/)                          │
+│                                                                     │
+│  ┌──────────────┐  ┌──────────────────────────────────────────────┐ │
+│  │ ingestion.py │  │              SQLite (WAL mode)               │ │
+│  │ Idempotent   │─▶│   events table  ·  pos_transactions table   │ │
+│  │ by event_id  │  └───────────┬──────────────────────────────────┘ │
+│  └──────────────┘              │                                   │
+│                                ▼                                   │
+│  ┌───────────────────────────────────────────────────────────────┐ │
+│  │                    API Endpoints                              │ │
+│  │                                                               │ │
+│  │  POST /events/ingest    → validate · dedup · store           │ │
+│  │  GET  /stores/{id}/metrics   → visitors · conversion · queue │ │
+│  │  GET  /stores/{id}/funnel    → Entry→Zone→Billing→Purchase   │ │
+│  │  GET  /stores/{id}/heatmap   → zone scores 0–100            │ │
+│  │  GET  /stores/{id}/anomalies → QUEUE_SPIKE·CONV_DROP·DEAD   │ │
+│  │  GET  /health                → feed lag · STALE_FEED         │ │
+│  └───────────────────────────────────────────────────────────────┘ │
+│                                                                     │
+│  telemetry.py → structured JSON logs (trace_id, latency_ms, ...)  │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│              Live Dashboard  (dashboard/live_dashboard.py)          │
+│                                                                     │
+│   Streamlit · auto-refresh 10s · store selector sidebar            │
+│   Metrics bar · Funnel chart · Anomaly panel · Zone heatmap        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Data Flow
+
+```
+CCTV Clip
+   │
+   │  15 fps frames
+   ▼
+YOLOv8n ──── detects persons (class 0, conf > 0.35)
+   │
+   ▼
+ByteTrack ── assigns track_id, persists through occlusion
+   │
+   ├── Zone Classifier ── centroid point-in-polygon → zone_id
+   ├── Staff Detector  ── HSV upper-body colour → is_staff flag
+   └── Re-ID Manager   ── cosine similarity histogram → visitor_id
+              │
+              │  re-entry detected → REENTRY event
+              │  cross-camera match → same visitor_id
+              ▼
+        EventEmitter ── batches 50 events → POST /events/ingest
+              │
+              ▼
+        Intelligence API stores + computes in real time
+              │
+              ▼
+        Dashboard renders live metrics
+```
 
 ---
 
 ## Quick Start (5 commands)
 
 ```bash
-git clone <repo-url> && cd store-intelligence
+# 1. Clone
+git clone https://github.com/mridulkumar2074/Store-Intelligence-Purplle.git
+cd Store-Intelligence-Purplle
 
-# 1. Start the API + dashboard
-docker compose up -d api dashboard
+# 2. Install & start API
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 
-# 2. Verify the API is healthy
+# 3. Check health (sample events auto-loaded)
 curl http://localhost:8000/health
 
-# 3. Load sample events (no video required)
-python sample_events/generate_sample.py --store ST1008 --visitors 30 --out sample_events/events.jsonl
-curl -X POST http://localhost:8000/events/ingest \
-     -H "Content-Type: application/json" \
-     -d "{\"events\": $(python -c "import json; lines=[json.loads(l) for l in open('sample_events/events.jsonl')]; print(json.dumps(lines[:50]))")}"
+# 4. View metrics
+curl http://localhost:8000/stores/ST1008/metrics
 
-# 4. Check metrics
-curl http://localhost:8000/stores/ST1008/metrics | python -m json.tool
-
-# 5. Open the live dashboard
-open http://localhost:8501
+# 5. Open dashboard
+pip install -r requirements-dashboard.txt
+streamlit run dashboard/live_dashboard.py
 ```
+
+Open **http://localhost:8501** for the dashboard · **http://localhost:8000/docs** for Swagger UI.
 
 ---
 
-## Running the Detection Pipeline Against the CCTV Clips
-
-### Prerequisites
+## Running the Detection Pipeline Against CCTV Clips
 
 ```bash
 pip install -r requirements-pipeline.txt
-# YOLOv8n weights are downloaded automatically on first run (~6MB)
-```
 
-### Process a Single Camera
-
-```bash
+# Single camera
 python -m pipeline.detect \
   --store-id ST1008 \
   --camera-id CAM_ENTRY \
@@ -52,32 +154,21 @@ python -m pipeline.detect \
   --camera-type entry \
   --layout data/store_layout.json \
   --api-url http://localhost:8000 \
-  --pos-csv data/pos_transactions.csv \
-  --start-ts "2026-04-10T10:00:00Z"
+  --pos-csv data/pos_transactions.csv
+
+# All cameras — both stores
+bash pipeline/run.sh --api-url http://localhost:8000
 ```
 
-### Process All Cameras (Both Stores)
+---
+
+## Docker
 
 ```bash
-# Make sure the API is running first
 docker compose up -d api
-
-# Then run the pipeline
-API_URL=http://localhost:8000 bash pipeline/run.sh
-
-# Or for a specific store only:
-bash pipeline/run.sh --store ST1008 --api-url http://localhost:8000
-```
-
-The pipeline will:
-1. Process each camera clip in order (entry → zone → billing)
-2. Emit events via `POST /events/ingest` in batches of 50
-3. Correlate billing zone exits with POS transactions for abandon detection
-4. Log progress and flush counts per camera
-
-### Via Docker Compose (Pipeline Container)
-
-```bash
+# Dashboard:
+docker compose up -d dashboard
+# Detection pipeline against clips:
 docker compose --profile pipeline up pipeline
 ```
 
@@ -85,82 +176,14 @@ docker compose --profile pipeline up pipeline
 
 ## API Reference
 
-| Endpoint | Description |
-|----------|-------------|
-| `POST /events/ingest` | Ingest up to 500 events. Idempotent by `event_id`. |
-| `GET /stores/{id}/metrics` | Unique visitors, conversion rate, queue depth, abandonment |
-| `GET /stores/{id}/funnel` | Entry → Zone Visit → Billing → Purchase funnel |
-| `GET /stores/{id}/heatmap` | Zone visit frequency + avg dwell, normalised 0-100 |
-| `GET /stores/{id}/anomalies` | Active anomalies with severity and suggested action |
-| `GET /health` | Service health + per-store feed lag |
-
-All endpoints support JSON. Swagger UI: http://localhost:8000/docs
-
----
-
-## Running Tests
-
-```bash
-pip install pytest pytest-cov httpx
-pytest --cov=app --cov=pipeline --cov-report=term-missing
-```
-
-Expected coverage: >70%
-
----
-
-## Live Dashboard
-
-Open **http://localhost:8501** after `docker compose up`.
-
-- Auto-refreshes every 10 seconds
-- Shows real-time metrics, funnel, heatmap, and anomalies
-- Store selector in sidebar
-- Feed staleness banner at top
-
----
-
-## Project Structure
-
-```
-├── app/                    # FastAPI intelligence API
-│   ├── main.py             # FastAPI entrypoint + POS CSV loader
-│   ├── models.py           # Pydantic event + response schemas
-│   ├── database.py         # SQLAlchemy ORM + SQLite setup
-│   ├── ingestion.py        # POST /events/ingest logic
-│   ├── metrics.py          # Real-time metric computation
-│   ├── funnel.py           # Funnel + session deduplication
-│   ├── heatmap.py          # Zone heatmap normalisation
-│   ├── anomalies.py        # Anomaly detection (3 types)
-│   ├── health.py           # Health + STALE_FEED detection
-│   └── telemetry.py        # Structured JSON request logging
-├── pipeline/               # Detection pipeline
-│   ├── detect.py           # YOLOv8n detection + ByteTrack
-│   ├── tracker.py          # Re-ID + cross-camera dedup
-│   ├── zone_classifier.py  # Point-in-polygon zone assignment
-│   ├── staff_detector.py   # HSV uniform colour detection
-│   ├── emit.py             # Event schema + HTTP emission
-│   └── run.sh              # One-command clip processor
-├── dashboard/
-│   └── live_dashboard.py   # Streamlit live dashboard
-├── data/
-│   ├── store_layout.json   # Zone definitions for both stores
-│   └── pos_transactions.csv
-├── sample_events/
-│   ├── events.jsonl        # 596 synthetic schema-valid events
-│   ├── generate_sample.py  # Synthetic event generator
-│   └── convert_pos.py      # POS CSV → normalised JSON
-├── tests/
-│   ├── test_pipeline.py    # Zone classifier, Re-ID, emitter tests
-│   ├── test_metrics.py     # API endpoint tests (idempotency, edge cases)
-│   └── test_anomalies.py   # Anomaly detection tests
-├── docs/
-│   ├── DESIGN.md           # Architecture + AI-assisted decisions
-│   └── CHOICES.md          # 3 key decisions with full reasoning
-├── Dockerfile
-├── Dockerfile.pipeline
-└── docker-compose.yml
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/events/ingest` | Ingest up to 500 events. Idempotent by `event_id`. |
+| GET | `/stores/{id}/metrics` | Unique visitors, conversion rate, queue depth, abandonment |
+| GET | `/stores/{id}/funnel` | Entry → Zone → Billing → Purchase funnel with drop-off % |
+| GET | `/stores/{id}/heatmap` | Zone visit frequency + avg dwell, normalised 0–100 |
+| GET | `/stores/{id}/anomalies` | BILLING_QUEUE_SPIKE / CONVERSION_DROP / DEAD_ZONE |
+| GET | `/health` | Service health + STALE_FEED detection per store |
 
 ---
 
@@ -186,16 +209,59 @@ Open **http://localhost:8501** after `docker compose up`.
 }
 ```
 
-**Event types**: `ENTRY`, `EXIT`, `ZONE_ENTER`, `ZONE_EXIT`, `ZONE_DWELL`, `BILLING_QUEUE_JOIN`, `BILLING_QUEUE_ABANDON`, `REENTRY`
+**Event types:** `ENTRY` · `EXIT` · `ZONE_ENTER` · `ZONE_EXIT` · `ZONE_DWELL` · `BILLING_QUEUE_JOIN` · `BILLING_QUEUE_ABANDON` · `REENTRY`
 
 ---
 
-## Store Layout
+## Project Structure
 
-Zone definitions live in `data/store_layout.json`. Each store has:
-- Camera metadata (type, file, FPS, resolution)
-- Counting line for entry/exit (y-coordinate + direction)
-- Zone polygons per camera (pixel coordinates for 1920×1080)
+```
+├── app/                        FastAPI Intelligence API
+│   ├── main.py                 Entrypoint + POS/event auto-loader
+│   ├── models.py               Pydantic schemas
+│   ├── database.py             SQLAlchemy + SQLite WAL
+│   ├── ingestion.py            Idempotent event ingest
+│   ├── metrics.py              Real-time metric computation
+│   ├── funnel.py               Session-based funnel logic
+│   ├── heatmap.py              Zone normalisation (0–100)
+│   ├── anomalies.py            3 anomaly detectors
+│   ├── health.py               STALE_FEED detection
+│   └── telemetry.py            Structured JSON logging
+├── pipeline/                   CCTV Detection Pipeline
+│   ├── detect.py               YOLOv8n + ByteTrack main loop
+│   ├── tracker.py              Re-ID + cross-camera dedup
+│   ├── zone_classifier.py      Ray-casting point-in-polygon
+│   ├── staff_detector.py       HSV uniform colour detection
+│   ├── emit.py                 Event builder + HTTP emission
+│   └── run.sh                  One-command clip processor
+├── dashboard/
+│   └── live_dashboard.py       Streamlit live dashboard
+├── assets/                     Screenshots
+├── data/
+│   ├── store_layout.json       Zone polygons (ST1008 + ST1076)
+│   └── pos_transactions.csv    101 POS transaction records
+├── sample_events/
+│   ├── events.jsonl            828 synthetic schema-valid events
+│   ├── generate_sample.py      Synthetic event generator
+│   └── convert_pos.py          POS CSV → normalised JSON
+├── tests/                      71 tests · 73% coverage
+├── docs/
+│   ├── DESIGN.md               Architecture + AI-Assisted Decisions
+│   └── CHOICES.md              3 decisions with full trade-off reasoning
+├── Dockerfile
+├── Dockerfile.pipeline
+└── docker-compose.yml
+```
+
+---
+
+## Tests
+
+```bash
+pip install pytest pytest-cov httpx
+pytest --cov=app --cov=pipeline --cov-report=term-missing
+# 71 passed · 73% coverage
+```
 
 ---
 
@@ -203,8 +269,8 @@ Zone definitions live in `data/store_layout.json`. Each store has:
 
 | Concern | Current | Production Path |
 |---------|---------|-----------------|
-| Database | SQLite WAL | PostgreSQL + TimescaleDB (change `DATABASE_URL`) |
-| Event throughput | Batch HTTP | Kafka/Kinesis stream consumer |
-| Re-ID accuracy | Colour histogram | OSNet deep Re-ID model (GPU required) |
+| Database | SQLite WAL | PostgreSQL + TimescaleDB (`DATABASE_URL` env var) |
+| Event throughput | Batch HTTP | Kafka / Kinesis stream consumer |
+| Re-ID accuracy | Colour histogram | OSNet deep Re-ID (GPU required) |
 | Dashboard | Streamlit polling | WebSocket push + React frontend |
 | Multi-store | Sequential processing | Kubernetes jobs per store |
