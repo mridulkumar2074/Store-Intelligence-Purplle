@@ -11,7 +11,9 @@ from app.models import StoreMetrics, ZoneDwellStat
 
 
 def _today_str() -> str:
-    return date.today().isoformat()
+    # Use UTC — all event timestamps are stored in UTC, so the "today"
+    # filter must also be UTC or it silently misses events near midnight.
+    return datetime.now(timezone.utc).date().isoformat()
 
 
 def get_store_metrics(db: Session, store_id: str, for_date: Optional[str] = None) -> StoreMetrics:

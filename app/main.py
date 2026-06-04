@@ -73,6 +73,8 @@ def _load_sample_events() -> None:
     if not os.path.exists(events_path):
         return
     import json as _json
+    import uuid as _uuid
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
     from app.database import SessionLocal
     from app.models import IngestRequest, StoreEvent
     db = SessionLocal()
@@ -80,20 +82,42 @@ def _load_sample_events() -> None:
         from app.database import EventRow
         if db.query(EventRow).count() > 0:
             return
-        events = []
+        raw = []
         with open(events_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
                     try:
-                        events.append(StoreEvent.model_validate(_json.loads(line)))
+                        raw.append(_json.loads(line))
                     except Exception:
                         pass
+        if not raw:
+            return
+
+        # Shift all event dates so the latest event falls on today (UTC).
+        # This keeps the deployed demo "live" no matter when it (re)starts —
+        # Render's free tier has ephemeral storage and reloads on every cold start.
+        def _parse(ts: str) -> _dt:
+            return _dt.fromisoformat(ts.replace("Z", "+00:00"))
+
+        max_ts = max(_parse(e["timestamp"]) for e in raw)
+        today_utc = _dt.now(_tz.utc).date()
+        day_offset = (today_utc - max_ts.date()).days
+
+        events = []
+        for e in raw:
+            try:
+                shifted = _parse(e["timestamp"]) + _td(days=day_offset)
+                e["timestamp"] = shifted.isoformat()
+                e["event_id"] = str(_uuid.uuid4())  # fresh ids to avoid stale collisions
+                events.append(StoreEvent.model_validate(e))
+            except Exception:
+                pass
+
         if events:
             from app.ingestion import ingest_events
-            ingest_events(db, IngestRequest(events=events[:500]))
-            if len(events) > 500:
-                ingest_events(db, IngestRequest(events=events[500:]))
+            for i in range(0, len(events), 500):
+                ingest_events(db, IngestRequest(events=events[i:i + 500]))
     except Exception:
         pass
     finally:

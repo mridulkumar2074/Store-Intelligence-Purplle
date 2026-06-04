@@ -11,8 +11,8 @@ from app.models import FunnelStage, StoreFunnel
 
 
 def get_funnel(db: Session, store_id: str, for_date: Optional[str] = None) -> StoreFunnel:
-    from datetime import date as date_type
-    target_date = for_date or date_type.today().isoformat()
+    # UTC date — event timestamps are stored in UTC (see metrics._today_str).
+    target_date = for_date or datetime.now(timezone.utc).date().isoformat()
 
     # Unique sessions = distinct visitor_ids that had at least one ENTRY event today.
     # REENTRY events use the same visitor_id, so they naturally do not inflate this count.
