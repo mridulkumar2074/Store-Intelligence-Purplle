@@ -16,8 +16,41 @@ def _today_str() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
+def resolve_date(db: Session, store_id: str, for_date: Optional[str]) -> str:
+    """
+    Resolve the date to report on.
+
+    - If the caller passed an explicit date, honour it exactly.
+    - Otherwise default to today (UTC). If today has no events for this store
+      (e.g. a demo deployment whose data was loaded on an earlier day), fall
+      back to the most recent date that does have events. The response always
+      carries the resolved `date` so the caller knows which day is reported.
+    """
+    if for_date:
+        return for_date
+
+    today = _today_str()
+    has_today = (
+        db.query(EventRow.event_id)
+        .filter(
+            EventRow.store_id == store_id,
+            func.date(EventRow.timestamp) == today,
+        )
+        .first()
+    )
+    if has_today:
+        return today
+
+    latest = (
+        db.query(func.max(func.date(EventRow.timestamp)))
+        .filter(EventRow.store_id == store_id)
+        .scalar()
+    )
+    return str(latest) if latest else today
+
+
 def get_store_metrics(db: Session, store_id: str, for_date: Optional[str] = None) -> StoreMetrics:
-    target_date = for_date or _today_str()
+    target_date = resolve_date(db, store_id, for_date)
 
     base_q = db.query(EventRow).filter(
         EventRow.store_id == store_id,

@@ -7,12 +7,13 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import EventRow, POSTransaction
+from app.metrics import resolve_date
 from app.models import FunnelStage, StoreFunnel
 
 
 def get_funnel(db: Session, store_id: str, for_date: Optional[str] = None) -> StoreFunnel:
-    # UTC date — event timestamps are stored in UTC (see metrics._today_str).
-    target_date = for_date or datetime.now(timezone.utc).date().isoformat()
+    # UTC date with fallback to latest date that has data (see metrics.resolve_date).
+    target_date = resolve_date(db, store_id, for_date)
 
     # Unique sessions = distinct visitor_ids that had at least one ENTRY event today.
     # REENTRY events use the same visitor_id, so they naturally do not inflate this count.
